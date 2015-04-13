@@ -15,6 +15,7 @@
 #include <time.h>
 
 //#include <boost/algorithm/string.hpp>
+
 #include "common/admin_socket.h"
 #include "common/perf_counters.h"
 #include "common/Thread.h"
@@ -154,6 +155,67 @@ public:
 };
 
 
+// cct config watcher
+class CephContextObs : public md_config_obs_t {
+  CephContext *cct;
+
+public:
+  CephContextObs(CephContext *cct) : cct(cct) {}
+
+  const char** get_tracked_conf_keys() const {
+    static const char *KEYS[] = {
+      "enable_experimental_unrecoverable_data_corrupting_features",
+      NULL
+    };
+    return KEYS;
+  }
+
+  void handle_conf_change(const md_config_t *conf,
+                          const std::set <std::string> &changed) {
+    ceph_spin_lock(&cct->_feature_lock);
+    get_str_set(conf->enable_experimental_unrecoverable_data_corrupting_features,
+		cct->_experimental_features);
+    ceph_spin_unlock(&cct->_feature_lock);
+    if (!cct->_experimental_features.empty())
+      lderr(cct) << "WARNING: the following dangerous and experimental features are enabled: "
+		 << cct->_experimental_features << dendl;
+  }
+};
+
+bool CephContext::check_experimental_feature_enabled(const std::string& feat)
+{
+  stringstream message;
+  bool enabled = check_experimental_feature_enabled(feat, &message);
+  lderr(this) << message.str() << dendl;
+  return enabled;
+}
+
+bool CephContext::check_experimental_feature_enabled(const std::string& feat,
+						     std::ostream *message)
+{
+  ceph_spin_lock(&_feature_lock);
+  bool enabled = _experimental_features.count(feat);
+  ceph_spin_unlock(&_feature_lock);
+
+  if (enabled) {
+    (*message) << "WARNING: experimental feature '" << feat << "' is enabled\n";
+    (*message) << "Please be aware that this feature is experimental, untested,\n";
+    (*message) << "unsupported, and may result in data corruption, data loss,\n";
+    (*message) << "and/or irreparable damage to your cluster.  Do not use\n";
+    (*message) << "feature with important data.\n";
+  } else {
+    (*message) << "*** experimental feature '" << feat << "' is not enabled ***\n";
+    (*message) << "This feature is marked as experimental, which means it\n";
+    (*message) << " - is untested\n";
+    (*message) << " - is unsupported\n";
+    (*message) << " - may corrupt your data\n";
+    (*message) << " - may break your cluster is an unrecoverable fashion\n";
+    (*message) << "To enable this feature, add this to your ceph.conf:\n";
+    (*message) << "  enable experimental unrecoverable data corrupting features = " << feat << "\n";
+  }
+  return enabled;
+}
+
 // perfcounter hooks
 
 class CephContextHook : public AdminSocketHook {
@@ -265,12 +327,16 @@ CephContext::CephContext(uint32_t module_type_)
 {
   ceph_spin_init(&_service_thread_lock);
   ceph_spin_init(&_associated_objs_lock);
+  ceph_spin_init(&_feature_lock);
 
   _log = new ceph::log::Log(&_conf->subsys);
   _log->start();
 
   _log_obs = new LogObs(_log);
   _conf->add_observer(_log_obs);
+
+  _cct_obs = new CephContextObs(this);
+  _conf->add_observer(_cct_obs);
 
   _perf_counters_collection = new PerfCountersCollection(this);
   //by ketor _admin_socket = new AdminSocket(this);
@@ -328,6 +394,10 @@ CephContext::~CephContext()
   delete _log_obs;
   _log_obs = NULL;
 
+  _conf->remove_observer(_cct_obs);
+  delete _cct_obs;
+  _cct_obs = NULL;
+
   _log->stop();
   delete _log;
   _log = NULL;
@@ -335,6 +405,7 @@ CephContext::~CephContext()
   delete _conf;
   ceph_spin_destroy(&_service_thread_lock);
   ceph_spin_destroy(&_associated_objs_lock);
+  ceph_spin_destroy(&_feature_lock);
 
   delete _crypto_none;
   delete _crypto_aes;

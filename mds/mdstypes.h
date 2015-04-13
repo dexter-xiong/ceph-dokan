@@ -414,6 +414,8 @@ struct inode_t {
 
   version_t backtrace_version;
 
+  snapid_t oldest_snap;
+
   inode_t() : ino(0), rdev(0),
 	      mode(0), uid(0), gid(0), nlink(0),
 	      size(0), max_size_ever(0),
@@ -494,7 +496,7 @@ struct inode_t {
     }
   }
 
-  bool is_backtrace_updated() {
+  bool is_backtrace_updated() const {
     return backtrace_version == version;
   }
   void update_backtrace(version_t pv=0) {

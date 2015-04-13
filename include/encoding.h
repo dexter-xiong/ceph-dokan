@@ -286,7 +286,7 @@ inline void decode(T &o, bufferlist& bl)
 #include <deque>
 #include <vector>
 #include <string>
-#include <boost/optional.hpp>
+#include <boost/optional/optional_io.hpp>
 #include <boost/tuple/tuple.hpp>
 
 #ifndef _BACKWARD_BACKWARD_WARNING_H
@@ -306,6 +306,10 @@ inline void encode(const boost::optional<T> &p, bufferlist &bl)
     encode(p.get(), bl);
 }
 
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 template<typename T>
 inline void decode(boost::optional<T> &p, bufferlist::iterator &bp)
 {
@@ -317,6 +321,8 @@ inline void decode(boost::optional<T> &p, bufferlist::iterator &bp)
     decode(p.get(), bp);
   }
 }
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic warning "-Wpragmas"
 
 //triple tuple
 template<class A, class B, class C>
@@ -756,14 +762,14 @@ inline void decode(std::deque<T>& ls, bufferlist::iterator& p)
  */
 #define ENCODE_START(v, compat, bl)			     \
   __u8 struct_v = v, struct_compat = compat;		     \
-  ::encode(struct_v, bl);				     \
-  ::encode(struct_compat, bl);				     \
-  buffer::list::iterator struct_compat_it = bl.end();	     \
+  ::encode(struct_v, (bl));				     \
+  ::encode(struct_compat, (bl));			     \
+  buffer::list::iterator struct_compat_it = (bl).end();	     \
   struct_compat_it.advance(-1);				     \
   ceph_le32 struct_len;				             \
   struct_len = 0;                                            \
-  ::encode(struct_len, bl);				     \
-  buffer::list::iterator struct_len_it = bl.end();	     \
+  ::encode(struct_len, (bl));				     \
+  buffer::list::iterator struct_len_it = (bl).end();	     \
   struct_len_it.advance(-4);				     \
   do {
 
@@ -775,7 +781,7 @@ inline void decode(std::deque<T>& ls, bufferlist::iterator& p)
  */
 #define ENCODE_FINISH_NEW_COMPAT(bl, new_struct_compat)			\
   } while (false);							\
-  struct_len = bl.length() - struct_len_it.get_off() - sizeof(struct_len); \
+  struct_len = (bl).length() - struct_len_it.get_off() - sizeof(struct_len); \
   struct_len_it.copy_in(4, (char *)&struct_len);			\
   if (new_struct_compat) {						\
     struct_compat = new_struct_compat;					\

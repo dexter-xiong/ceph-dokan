@@ -222,6 +222,7 @@ namespace librados
     OP_FADVISE_SEQUENTIAL = LIBRADOS_OP_FLAG_FADVISE_SEQUENTIAL,
     OP_FADVISE_WILLNEED = LIBRADOS_OP_FLAG_FADVISE_WILLNEED,
     OP_FADVISE_DONTNEED = LIBRADOS_OP_FLAG_FADVISE_DONTNEED,
+    OP_FADVISE_NOCACHE = LIBRADOS_OP_FLAG_FADVISE_NOCACHE,
   };
 
   class CEPH_RADOS_API ObjectOperationCompletion {
@@ -619,6 +620,8 @@ namespace librados
 
     // get pool auid
     int get_auid(uint64_t *auid_);
+
+    uint64_t get_instance_id() const;
 
     std::string get_pool_name();
 
@@ -1082,12 +1085,14 @@ namespace librados
 		    bufferlist *outbl, std::string *outs);
 
     int ioctx_create(const char *name, IoCtx &pioctx);
+    int ioctx_create2(int64_t pool_id, IoCtx &pioctx);
 
     // Features useful for test cases
     void test_blacklist_self(bool set);
 
     /* listing objects */
     int pool_list(std::list<std::string>& v);
+    int pool_list2(std::list<std::pair<int64_t, std::string> >& v);
     int get_pool_stats(std::list<std::string>& v,
 		       stats_map& result);
     /// deprecated; use simpler form.  categories no longer supported.
@@ -1102,6 +1107,9 @@ namespace librados
 
     /// get/wait for the most recent osdmap
     int wait_for_latest_osdmap();
+
+    int blacklist_add(const std::string& client_address,
+                      uint32_t expire_seconds);
 
     /*
      * pool aio
