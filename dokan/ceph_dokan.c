@@ -23,6 +23,9 @@
 #define MAX_PATH_CEPH 8192
 #define CEPH_DOKAN_IO_TIMEOUT 1000 * 60 * 2
 
+#define CEPH_FILE_MAX 1024*1024*1024*1024LL
+#define CEPH_FILE_ACCESS_BUFFER_MAX 128*1024*1024
+
 BOOL WINAPI CCHandler(DWORD);
 
 static BOOL g_UseStdErr;
@@ -395,6 +398,7 @@ WinCephCreateFile(
     int fd = 0;
     if(strcmp(file_name, "/")==0)
     {
+        DokanFileInfo->IsDirectory = TRUE;
         return 0;
     }
     else
@@ -409,16 +413,7 @@ WinCephCreateFile(
                     case CREATE_NEW:
                         return -ERROR_FILE_EXISTS;
                     case TRUNCATE_EXISTING:
-                        //open O_TRUNC & return 0
-                        if(g_UseACL)
-                        {
-                            /* permission check*/
-                            int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                                          PERM_WALK_CHECK_WRITE);
-                            if(st)
-                                return -ERROR_ACCESS_DENIED;
-                        }
-                        fd = ceph_open(cmount, file_name, O_CREAT|O_TRUNC|O_RDWR, 0755);
+                        fd = ceph_open(cmount, file_name, O_CREAT|O_TRUNC|O_RDWR, 0775);
                         if(fd<0){
                             DbgPrint("\terror code = %d\n\n", fd);
                             fwprintf(stderr, L"CreateFile REG TRUNCATE_EXISTING ceph_open error [%s][ret=%d]\n", FileName, fd);
@@ -438,14 +433,6 @@ WinCephCreateFile(
                             || AccessMode & STANDARD_RIGHTS_READ
                             || AccessMode & FILE_SHARE_READ)
                         {
-                            if(g_UseACL)
-                            {
-                                /* permission check*/
-                                int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                                              PERM_WALK_CHECK_READ);
-                                if(st)
-                                    return -ERROR_ACCESS_DENIED;
-                            }
                         }
                         
                         if(AccessMode & GENERIC_WRITE
@@ -453,19 +440,12 @@ WinCephCreateFile(
                             || AccessMode & STANDARD_RIGHTS_WRITE
                             || AccessMode & FILE_SHARE_DELETE)
                         {
-                            if(g_UseACL)
-                            {
-                                /* permission check*/
-                                int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                                              PERM_WALK_CHECK_WRITE);
-                                if(st) fdc.read_only = 1;
-                            }
                         }
                         
                         if(fdc.read_only == 1)
-                            fd = ceph_open(cmount, file_name, O_RDONLY, 0755);
+                            fd = ceph_open(cmount, file_name, O_RDONLY, 0775);
                         else
-                            fd = ceph_open(cmount, file_name, O_RDWR, 0755);
+                            fd = ceph_open(cmount, file_name, O_RDWR, 0775);
                         if(fd<0){
                             DbgPrint("\terror code = %d\n\n", fd);
                             fwprintf(stderr, L"CreateFile REG OPEN_ALWAYS ceph_open error [%s][ret=%d]\n", FileName, fd);
@@ -485,15 +465,6 @@ WinCephCreateFile(
                             || AccessMode & STANDARD_RIGHTS_READ
                             || AccessMode & FILE_SHARE_READ)
                         {
-                            //fwprintf(stderr, L"CreateFile REG OPEN_EXISTING ceph_open ACL READ [%s]\n", FileName);
-                            if(g_UseACL)
-                            {
-                                /* permission check*/
-                                int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                                              PERM_WALK_CHECK_READ);
-                                if(st)
-                                    return -ERROR_ACCESS_DENIED;
-                            }
                         }
                         
                         if(AccessMode & GENERIC_WRITE
@@ -501,20 +472,12 @@ WinCephCreateFile(
                             || AccessMode & STANDARD_RIGHTS_WRITE
                             || AccessMode & FILE_SHARE_DELETE)
                         {
-                            //fwprintf(stderr, L"CreateFile REG OPEN_EXISTING ceph_open ACL WRITE [%s]\n", FileName);
-                            if(g_UseACL)
-                            {
-                                /* permission check*/
-                                int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                                              PERM_WALK_CHECK_WRITE);
-                                if(st) fdc.read_only = 1;
-                            }
                         }
                         
                         if(fdc.read_only == 1)
-                            fd = ceph_open(cmount, file_name, O_RDONLY, 0755);
+                            fd = ceph_open(cmount, file_name, O_RDONLY, 0775);
                         else
-                            fd = ceph_open(cmount, file_name, O_RDWR, 0755);
+                            fd = ceph_open(cmount, file_name, O_RDWR, 0775);
                         if(fd<0){
                             DbgPrint("\terror code = %d\n\n", fd);
                             fwprintf(stderr, L"CreateFile ceph_open REG OPEN_EXISTING error [%s][ret=%d]\n", FileName, fd);
@@ -528,15 +491,7 @@ WinCephCreateFile(
                         return 0;
                     case CREATE_ALWAYS:
                         //open O_TRUNC & return ERROR_ALREADY_EXISTS
-                        if(g_UseACL)
-                        {
-                            /* permission check*/
-                            int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                                          PERM_WALK_CHECK_READ|PERM_WALK_CHECK_WRITE);
-                            if(st)
-                                return -ERROR_ACCESS_DENIED;
-                        }
-                        fd = ceph_open(cmount, file_name, O_CREAT|O_TRUNC|O_RDWR, 0755);
+                        fd = ceph_open(cmount, file_name, O_CREAT|O_TRUNC|O_RDWR, 0775);
                         if(fd<0){
                             DbgPrint("\terror code = %d\n\n", fd);
                             fwprintf(stderr, L"CreateFile ceph_open error REG CREATE_ALWAYS [%s][ret=%d]\n", FileName, fd);
@@ -553,7 +508,7 @@ WinCephCreateFile(
             }
             else if(S_ISDIR(st_buf.st_mode))
             {
-                //DokanFileInfo->IsDirectory = TRUE;
+                DokanFileInfo->IsDirectory = TRUE;
                 
                 switch (CreationDisposition) {
                     case CREATE_NEW:
@@ -567,23 +522,17 @@ WinCephCreateFile(
                     case CREATE_ALWAYS:
                         return ERROR_ALREADY_EXISTS;
                 }
-            }else
+            } else {
+                DbgPrint("Unknown st_mode %s %s", FileName, st_buf.st_mode);
                 return -1;
+            }
         }
         else /*File Not Exists*/
         {
             switch (CreationDisposition) {
                 case CREATE_NEW:
                     //create & return 0
-                    if(g_UseACL)
-                    {
-                        /* permission check*/
-                        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-                        if(st)
-                            return -ERROR_ACCESS_DENIED;
-                    }
-                    fd = ceph_open(cmount, file_name, O_CREAT|O_RDWR|O_EXCL, 0755);
+                    fd = ceph_open(cmount, file_name, O_CREAT|O_RDWR|O_EXCL, 0775);
                     if(fd<0){
                         DbgPrint("\terror code = %d\n\n", fd);
                         fwprintf(stderr, L"CreateFile NOF CREATE_NEW ceph_open error [%s][ret=%d]\n", FileName, fd);
@@ -596,19 +545,10 @@ WinCephCreateFile(
                     //    (int)DokanFileInfo->Context);
                     
                     ceph_chown(cmount, file_name, g_UID, g_GID);
-                    fuse_init_acl(cmount, file_name, 00777); //S_IRWXU|S_IRWXG|S_IRWXO
                     return 0;
                 case CREATE_ALWAYS:
                     //create & return 0
-                    if(g_UseACL)
-                    {
-                        /* permission check*/
-                        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-                        if(st)
-                            return -ERROR_ACCESS_DENIED;
-                    }
-                    fd = ceph_open(cmount, file_name, O_CREAT|O_TRUNC|O_RDWR, 0755);
+                    fd = ceph_open(cmount, file_name, O_CREAT|O_TRUNC|O_RDWR, 0775);
                     if(fd<0){
                         DbgPrint("\terror code = %d\n\n", fd);
                         fwprintf(stderr, L"CreateFile NOF CREATE_ALWAYS ceph_open error [%s][ret=%d]\n", FileName, fd);
@@ -621,18 +561,9 @@ WinCephCreateFile(
                     //    (int)DokanFileInfo->Context);
                     
                     ceph_chown(cmount, file_name, g_UID, g_GID);
-                    fuse_init_acl(cmount, file_name, 00777); //S_IRWXU|S_IRWXG|S_IRWXO
                     return 0;
                 case OPEN_ALWAYS:
-                    if(g_UseACL)
-                    {
-                        /* permission check*/
-                        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-                        if(st)
-                            return -ERROR_ACCESS_DENIED;
-                    }
-                    fd = ceph_open(cmount, file_name, O_CREAT|O_RDWR, 0755);
+                    fd = ceph_open(cmount, file_name, O_CREAT|O_RDWR, 0775);
                     if(fd<=0){
                         DbgPrint("\terror code = %d\n\n", fd);
                         fwprintf(stderr, L"CreateFile REG NOF OPEN_ALWAYS ceph_open error [%s][ret=%d]\n", FileName, fd);
@@ -645,7 +576,6 @@ WinCephCreateFile(
                     //    (int)DokanFileInfo->Context);
                     
                     ceph_chown(cmount, file_name, g_UID, g_GID);
-                    fuse_init_acl(cmount, file_name, 00777); //S_IRWXU|S_IRWXG|S_IRWXO
                     return 0;
                 case OPEN_EXISTING:
                     if (file_name[0] == '/')
@@ -683,14 +613,6 @@ WinCephCreateDirectory(
         return 0;
     }
     
-    if(g_UseACL)
-    {
-        /* permission check*/
-        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-        if(st)
-            return -ERROR_ACCESS_DENIED;
-    }
     
     struct stat_ceph st_buf;
     int ret = ceph_stat(cmount, file_name, &st_buf);
@@ -701,7 +623,7 @@ WinCephCreateDirectory(
         }
     }
     
-    ret = ceph_mkdir(cmount, file_name, 0755);
+    ret = ceph_mkdir(cmount, file_name, 0775);
     if(ret == -2)
     {
         fwprintf(stderr, L"CreateDirectory ceph_mkdir ENOENT [%s][ret=%d]\n", FileName, ret);
@@ -712,10 +634,8 @@ WinCephCreateDirectory(
         return -5;
     }
     
-    if(g_UseACL){
-	    ceph_chown(cmount, file_name, g_UID, g_GID);
-	    fuse_init_acl(cmount, file_name, 0040777); //S_IRWXU|S_IRWXG|S_IRWXO|S_IFDIR
-	}
+    ceph_chown(cmount, file_name, g_UID, g_GID);
+    DokanFileInfo->IsDirectory = TRUE;
     return 0;
 }
 
@@ -747,17 +667,9 @@ WinCephOpenDirectory(
         return -1;
     }
     
-    if(g_UseACL)
-    {
-        /* permission check*/
-        int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                      PERM_WALK_CHECK_READ|PERM_WALK_CHECK_EXEC);
-        if(st)
-            return -ERROR_ACCESS_DENIED;
-    }
     
     if(S_ISDIR(st_buf.st_mode)){
-        int fd = ceph_open(cmount, file_name, O_RDONLY, 0755);
+        int fd = ceph_open(cmount, file_name, O_RDONLY, 0775);
         if(fd <= 0){
             DbgPrint("OpenDirectory ceph_opendir error : %s [%d]\n", filePath, ret);
             fwprintf(stderr, L"OpenDirectory ceph_opendir error : %s [fd:%d]\n", FileName, fd);
@@ -770,14 +682,16 @@ WinCephOpenDirectory(
         fdc.fd = fd;
         memcpy(&(DokanFileInfo->Context), &fdc, sizeof(fdc));
         
-        //DokanFileInfo->IsDirectory = TRUE;
+        DokanFileInfo->IsDirectory = TRUE;
         
         //fwprintf(stderr, L"OpenDirectory OK : %s [%d]\n", FileName, dirp);
         
         return 0;
     }
-    else
+    else {
+        DbgPrint("OpenDirectory hit file : %s [%d]\n", filePath, ret);
         return -1;
+    }
 }
 
 static int
@@ -825,7 +739,7 @@ WinCephCloseFile(
             }
         }
     } else {
-        DbgPrintW(L"Close: %s\n\tinvalid handle\n\n", filePath);
+        // DbgPrintW(L"Close: %s\n\tinvalid handle\n\n", filePath);
         return 0;
     }
 
@@ -849,10 +763,22 @@ WinCephCleanup(
     ToLinuxFilePath(file_name);
 
     if (DokanFileInfo->Context) {
+        struct fd_context fdc;
+        memcpy(&fdc, &(DokanFileInfo->Context), sizeof(fdc));
+        
+        //fwprintf(stderr, L"ceph_close [%s][fd=%d]\n", FileName, fd);
+        
+        int ret = ceph_close(cmount, fdc.fd);
+        if(ret){
+            DbgPrint("\terror code = %d\n\n", ret);
+            //return ret;
+        }
+        
+        DokanFileInfo->Context = 0;
         if (DokanFileInfo->DeleteOnClose) {
             DbgPrintW(L"\tDeleteOnClose\n");
             //fwprintf(stderr, L"Cleanup DeleteOnClose: %s\n", filePath);
-            if (DokanFileInfo->IsDirectory) {
+            if (DokanFileInfo->IsDirectory == TRUE) {
                 DbgPrintW(L"  DeleteDirectory ");
                 //fwprintf(stderr, L"cleanup ceph_rmdir [%s]\n", FileName);
                 int ret = ceph_rmdir(cmount, file_name);
@@ -873,6 +799,8 @@ WinCephCleanup(
             }
         }
 
+    } else if (DokanFileInfo->IsDirectory == TRUE) {
+        return 0;
     } else {
         DbgPrintW(L"Cleanup: %s\n\tinvalid handle\n\n", filePath);
         return -1;
@@ -893,8 +821,8 @@ WinCephReadFile(
 {
     WCHAR    filePath[MAX_PATH_CEPH];
     BOOL    opened = FALSE;
-    if(Offset > 1024*1024*1024*1024LL || Offset < 0 || BufferLength < 0
-          || BufferLength > 128*1024*1024){
+    if(Offset > CEPH_FILE_MAX || Offset < 0 || BufferLength < 0
+          || BufferLength > CEPH_FILE_ACCESS_BUFFER_MAX){
         fwprintf(stderr, L"FIlE WIRTE TOO LARGE [fn:%s][Offset=%lld][BufferLength=%ld]\n",FileName, Offset, BufferLength);
         return -1; //ERROR_FILE_TOO_LARGE
     }
@@ -974,8 +902,8 @@ WinCephWriteFile(
 {
     BOOL    opened = FALSE;
     WCHAR    filePath[MAX_PATH_CEPH];
-    if(Offset > 1024*1024*1024*1024LL || Offset < 0 || NumberOfBytesToWrite < 0
-          || NumberOfBytesToWrite > 128*1024*1024){
+    if(Offset > CEPH_FILE_MAX || Offset < 0 || NumberOfBytesToWrite < 0
+          || NumberOfBytesToWrite > CEPH_FILE_ACCESS_BUFFER_MAX){
         fwprintf(stderr, L"FIlE WIRTE TOO LARGE [fn:%s][Offset=%lld][NumberOfBytesToWrite=%ld]\n", FileName, Offset, NumberOfBytesToWrite);
         return -1; //ERROR_FILE_TOO_LARGE
     }
@@ -1140,6 +1068,7 @@ WinCephGetFileInformation(
     
     //fill stbuf.st_nlink
     HandleFileInformation->nNumberOfLinks = stbuf.st_nlink;
+    DokanFileInfo->IsDirectory = TRUE;
     
     return 0;
 }
@@ -1171,14 +1100,6 @@ WinCephFindFiles(
     
     //fwprintf(stderr, L"FindFiles ceph_opendir : [%s]\n", FileName);
 
-    if(g_UseACL)
-    {
-        /* permission check*/
-        int st = permission_walk(cmount, file_name, g_UID, g_GID,
-                                      PERM_WALK_CHECK_READ|PERM_WALK_CHECK_EXEC);
-        if(st)
-            return -ERROR_ACCESS_DENIED;
-    }
 
     struct ceph_dir_result *dirp;
     int ret = ceph_opendir(cmount, file_name, &dirp);
@@ -1227,8 +1148,10 @@ WinCephFindFiles(
         if(S_ISDIR(stbuf.st_mode)){
             //printf("[%s] is a Directory.............\n", result.d_name);
             findData.dwFileAttributes |= FILE_ATTRIBUTE_DIRECTORY;
+            DokanFileInfo->IsDirectory = TRUE;
         }
         else if(S_ISREG(stbuf.st_mode)){
+            DokanFileInfo->IsDirectory = FALSE;
             //printf("[%s] is a Regular File.............\n", result.d_name);
             findData.dwFileAttributes |= FILE_ATTRIBUTE_NORMAL;
         }
@@ -1241,6 +1164,7 @@ WinCephFindFiles(
     }
     
     ret = ceph_closedir(cmount, dirp);
+    DokanFileInfo->IsDirectory = TRUE;
 
     DbgPrintW(L"\tFindFiles return %d entries in %s\n\n", count, filePath);
 
@@ -1265,14 +1189,6 @@ WinCephDeleteFile(
     int len = wchar_to_char(file_name, FileName, MAX_PATH_CEPH);
     ToLinuxFilePath(file_name);
 
-    if(g_UseACL)
-    {
-        /* permission check*/
-        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-        if(st)
-            return -ERROR_ACCESS_DENIED;
-    }
     
     //fwprintf(stderr, L"ceph_unlink [%s]\n", FileName);
     return 0;
@@ -1301,14 +1217,6 @@ WinCephDeleteDirectory(
     
     //fwprintf(stderr, L"DeleteDirectory ceph_rmdir [%s]\n", FileName);
 
-    if(g_UseACL)
-    {
-        /* permission check*/
-        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-        if(st)
-            return -ERROR_ACCESS_DENIED;
-    }
 
     struct ceph_dir_result *dirp;
     int ret = ceph_opendir(cmount, file_name, &dirp);
@@ -1367,14 +1275,6 @@ WinCephMoveFile(
     ToLinuxFilePath(newfile_name);
     
     //fwprintf(stderr, L"MoveFile ceph_rename [%s][%s]\n", FileName, NewFileName);
-    if(g_UseACL)
-    {
-        /* permission check*/
-        int st = permission_walk_parent(cmount, file_name, g_UID, g_GID,
-                                      PERM_WALK_CHECK_WRITE|PERM_WALK_CHECK_EXEC);
-        if(st)
-            return -ERROR_ACCESS_DENIED;
-    }
     
     int ret = ceph_rename(cmount, file_name, newfile_name);
     if(ret){
@@ -1505,6 +1405,7 @@ WinCephSetFileAttributes(
     DWORD               FileAttributes,
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
+    /*
     WCHAR    filePath[MAX_PATH_CEPH];
     
     GetFilePath(filePath, MAX_PATH_CEPH, FileName);
@@ -1517,7 +1418,7 @@ WinCephSetFileAttributes(
     int len = wchar_to_char(file_name, FileName, MAX_PATH_CEPH);
     ToLinuxFilePath(file_name);
     
-    //fwprintf(stderr, L"SetFileAttributes [%s][%d]\n", FileName, FileAttributes);
+    //fwprintf(stderr, L"SetFileAttributes [%s][%d]\n", FileName, FileAttributes);*/
     
     return 0;
 }
@@ -1695,13 +1596,14 @@ WinCephGetFileSecurity(
     PULONG                LengthNeeded,
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
-    WCHAR    filePath[MAX_PATH_CEPH];
-    GetFilePath(filePath, MAX_PATH_CEPH, FileName);
+    return 0;
+    // WCHAR    filePath[MAX_PATH_CEPH];
+    // GetFilePath(filePath, MAX_PATH_CEPH, FileName);
 
-    DbgPrintW(L"GetFileSecurity %s\n", filePath);
+    // DbgPrintW(L"GetFileSecurity %s\n", filePath);
 
-    return WinCephGetFakeFileSecurity(FileName, SecurityInformation,
-            SecurityDescriptor, BufferLength, LengthNeeded, DokanFileInfo);
+    // return WinCephGetFakeFileSecurity(FileName, SecurityInformation,
+    //         SecurityDescriptor, BufferLength, LengthNeeded, DokanFileInfo);
 }
 
 static int
@@ -1712,10 +1614,10 @@ WinCephSetFileSecurity(
     ULONG                SecurityDescriptorLength,
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
-    WCHAR filePath[MAX_PATH_CEPH];
+    // WCHAR filePath[MAX_PATH_CEPH];
 
-    GetFilePath(filePath, MAX_PATH_CEPH, FileName);
-    DbgPrintW(L"SetFileSecurity %s\n", filePath);
+    // GetFilePath(filePath, MAX_PATH_CEPH, FileName);
+    // DbgPrintW(L"SetFileSecurity %s\n", filePath);
 
     return 0;
 }
@@ -1782,6 +1684,7 @@ BOOL WINAPI ConsoleHandler(DWORD dwType)
     switch(dwType) {
     case CTRL_C_EVENT:
         printf("ctrl-c\n");
+        WinCephUnmount(NULL);
         exit(0);
     case CTRL_BREAK_EVENT:
         printf("break\n");
