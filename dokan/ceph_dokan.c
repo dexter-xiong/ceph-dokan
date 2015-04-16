@@ -1177,21 +1177,7 @@ WinCephDeleteFile(
     LPCWSTR                FileName,
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
-    WCHAR    filePath[MAX_PATH_CEPH];
-
-    GetFilePath(filePath, MAX_PATH_CEPH, FileName);
-
-    DbgPrintW(L"DeleteFile %s\n", filePath);
-
-    DokanResetTimeout(CEPH_DOKAN_IO_TIMEOUT, DokanFileInfo);
-
-    char file_name[MAX_PATH_CEPH];
-    int len = wchar_to_char(file_name, FileName, MAX_PATH_CEPH);
-    ToLinuxFilePath(file_name);
-
-    
-    //fwprintf(stderr, L"ceph_unlink [%s]\n", FileName);
-    return 0;
+    return -ERROR_ACCESS_DENIED;
 }
 
 static int
@@ -1199,52 +1185,7 @@ WinCephDeleteDirectory(
     LPCWSTR                FileName,
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
-    WCHAR    filePath[MAX_PATH_CEPH];
-    HANDLE    hFind;
-    WIN32_FIND_DATAW    findData;
-    ULONG    fileLen;
-
-    ZeroMemory(filePath, sizeof(filePath));
-    GetFilePath(filePath, MAX_PATH_CEPH, FileName);
-
-    DbgPrintW(L"DeleteDirectory %s\n", filePath);
-
-    DokanResetTimeout(CEPH_DOKAN_IO_TIMEOUT, DokanFileInfo);
-
-    char file_name[MAX_PATH_CEPH];
-    int len = wchar_to_char(file_name, FileName, MAX_PATH_CEPH);
-    ToLinuxFilePath(file_name);
-    
-    //fwprintf(stderr, L"DeleteDirectory ceph_rmdir [%s]\n", FileName);
-
-
-    struct ceph_dir_result *dirp;
-    int ret = ceph_opendir(cmount, file_name, &dirp);
-    if(ret != 0){
-        fwprintf(stderr, L"ceph_opendir error : %s [%d]\n", FileName, ret);
-        return -1;
-    }
-    
-    //fwprintf(stderr, L"DeleteDirectory ceph_opendir OK: %s\n", FileName);
-    
-    while(1)
-    {
-        memset(&findData, 0, sizeof(findData));
-        struct dirent *result = ceph_readdir(cmount, dirp);
-        if(result!=NULL)
-        {
-            if(strcmp(result->d_name, ".")!=0 
-                && strcmp(result->d_name, "..")!=0)
-            {
-                ceph_closedir(cmount, dirp);
-                DbgPrintW(L"  Directory is not empty: %s\n", findData.cFileName);
-                return -(int)ERROR_DIR_NOT_EMPTY;
-            }
-        }else break;
-    }
-    
-    ceph_closedir(cmount, dirp);
-    return 0;
+    return -ERROR_ACCESS_DENIED;
 }
 
 
@@ -1255,33 +1196,7 @@ WinCephMoveFile(
     BOOL                ReplaceIfExisting,
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
-    WCHAR            filePath[MAX_PATH_CEPH];
-    WCHAR            newFilePath[MAX_PATH_CEPH];
-    BOOL            status;
-
-    GetFilePath(filePath, MAX_PATH_CEPH, FileName);
-    GetFilePath(newFilePath, MAX_PATH_CEPH, NewFileName);
-
-    DbgPrintW(L"MoveFile %s -> %s\n\n", filePath, newFilePath);
-
-    DokanResetTimeout(CEPH_DOKAN_IO_TIMEOUT, DokanFileInfo);
-
-    char file_name[MAX_PATH_CEPH];
-    int len = wchar_to_char(file_name, FileName, MAX_PATH_CEPH);
-    ToLinuxFilePath(file_name);
-
-    char newfile_name[MAX_PATH_CEPH];
-    len = wchar_to_char(newfile_name, NewFileName, MAX_PATH_CEPH);
-    ToLinuxFilePath(newfile_name);
-    
-    //fwprintf(stderr, L"MoveFile ceph_rename [%s][%s]\n", FileName, NewFileName);
-    
-    int ret = ceph_rename(cmount, file_name, newfile_name);
-    if(ret){
-        DbgPrint("\terror code = %d\n\n", ret);
-        return ret;
-    }
-    return ret;
+    return -ERROR_ACCESS_DENIED;
 }
 
 
