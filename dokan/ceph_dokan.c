@@ -148,7 +148,7 @@ int wchar_to_char(char *strGBK, LPCWSTR FileName, int strlen)
     }
     WideCharToMultiByte(CP_UTF8, 0, FileName, -1, strGBK, len, NULL, NULL);
 
-    return;
+    return 0;
 }
 
 int char_to_wchar(LPCWSTR FileName, char *strUtf8, int strlen)
@@ -1676,6 +1676,7 @@ WinCephUnmount(
     DbgPrintW(L"Unmount\n");
     fwprintf(stderr, L"umount\n");
     ceph_unmount(cmount);
+    fwprintf(stderr, L"umount finished\n");
     return 0;
 }
 
@@ -1685,6 +1686,7 @@ BOOL WINAPI ConsoleHandler(DWORD dwType)
     case CTRL_C_EVENT:
         printf("ctrl-c\n");
         WinCephUnmount(NULL);
+        Sleep(10000);
         exit(0);
     case CTRL_BREAK_EVENT:
         printf("break\n");

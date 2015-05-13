@@ -2118,7 +2118,7 @@ int Pipe::do_sendmsg(struct msghdr *msg, int len, bool more)
 //        l += msg->msg_iov[i].iov_len;
 //      assert(l == len);
 //    }
-    ldout(msgr->cct,0) << "..............do_sendmsg NOW" << dendl;
+    ldout(msgr->cct,20) << "..............do_sendmsg NOW" << dendl;
     char* msg_buf = (char*)malloc(len);
     if(msg_buf==NULL)
     {
@@ -2164,7 +2164,7 @@ int Pipe::do_sendmsg(struct msghdr *msg, int len, bool more)
         }
         free(msg_buf);
         msg_buf=NULL;
-    ldout(msgr->cct,0) << "do_sendmsg OK " << dendl;
+    ldout(msgr->cct,20) << "do_sendmsg OK " << dendl;
     
     //int r = ::sendmsg(sd, msg, MSG_NOSIGNAL);
     //ldout(msgr->cct,0) << ",,,,,,,,,,,,,,,,,do_sendmsg size=" << r << dendl;

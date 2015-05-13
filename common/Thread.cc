@@ -89,6 +89,7 @@ int Thread::kill(int signal)
 int Thread::try_create(size_t stacksize)
 {
   pthread_attr_t *thread_attr = NULL;
+  bool attr_inited = false;
   stacksize &= CEPH_PAGE_MASK;  // must be multiple of page
   if (stacksize) {
     thread_attr = (pthread_attr_t*) malloc(sizeof(pthread_attr_t));
@@ -96,6 +97,7 @@ int Thread::try_create(size_t stacksize)
       return -ENOMEM;
     pthread_attr_init(thread_attr);
     pthread_attr_setstacksize(thread_attr, stacksize);
+    attr_inited = true;
   }
 
   int r;
@@ -115,6 +117,8 @@ int Thread::try_create(size_t stacksize)
   r = pthread_create(&thread_id, thread_attr, _entry_func, (void*)this);
   //restore_sigset(&old_sigset);
 
+  if (attr_inited)
+	pthread_attr_destroy(thread_attr);
   if (thread_attr)
     free(thread_attr);
   return r;

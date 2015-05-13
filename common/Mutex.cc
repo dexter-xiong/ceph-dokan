@@ -28,14 +28,14 @@ Mutex::Mutex(const char *n, bool r, bool ld,
 {
 	locked_by.p = NULL;
 	locked_by.x = 0;
-  if (cct) {
-    PerfCountersBuilder b(cct, string("mutex-") + name,
-			  l_mutex_first, l_mutex_last);
-    b.add_time_avg(l_mutex_wait, "wait");
-    logger = b.create_perf_counters();
-    cct->get_perfcounters_collection()->add(logger);
-    logger->set(l_mutex_wait, 0);
-  }
+//  if (cct) {
+//    PerfCountersBuilder b(cct, string("mutex-") + name,
+//			  l_mutex_first, l_mutex_last);
+//    b.add_time_avg(l_mutex_wait, "wait");
+//    logger = b.create_perf_counters();
+//    cct->get_perfcounters_collection()->add(logger);
+//    logger->set(l_mutex_wait, 0);
+//  }
   if (recursive) {
     // Mutexes of type PTHREAD_MUTEX_RECURSIVE do all the same checks as
     // mutexes of type PTHREAD_MUTEX_ERRORCHECK.
@@ -57,6 +57,7 @@ Mutex::Mutex(const char *n, bool r, bool ld,
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
     pthread_mutex_init(&_m, &attr);
+    pthread_mutexattr_destroy(&attr);
     if (g_lockdep)
       _register();
   }
