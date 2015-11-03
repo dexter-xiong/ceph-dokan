@@ -24,7 +24,7 @@
 #define CEPH_DOKAN_IO_TIMEOUT 1000 * 60 * 2
 
 #define CEPH_FILE_MAX 1024*1024*1024*1024LL
-#define CEPH_FILE_ACCESS_BUFFER_MAX 128*1024*1024
+#define CEPH_FILE_ACCESS_BUFFER_MAX 1024*1024*1024
 
 BOOL WINAPI CCHandler(DWORD);
 
@@ -272,7 +272,7 @@ PrintUserName(PDOKAN_FILE_INFO    DokanFileInfo)
 #define WinCephCheckFlag(val, flag) if (val&flag) { DbgPrintW(L"\t" #flag L"\n"); }
 #define AlwaysCheckFlag(val, flag) if (val&flag) { AlwaysPrintW(L"\t" #flag L"\n"); }
 
-static int
+static int DOKAN_CALLBACK
 WinCephCreateFile(
     LPCWSTR                  FileName,
     DWORD                    AccessMode,
@@ -592,7 +592,7 @@ WinCephCreateFile(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephCreateDirectory(
     LPCWSTR                    FileName,
     PDOKAN_FILE_INFO        DokanFileInfo)
@@ -639,7 +639,7 @@ WinCephCreateDirectory(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephOpenDirectory(
     LPCWSTR                    FileName,
     PDOKAN_FILE_INFO        DokanFileInfo)
@@ -694,7 +694,7 @@ WinCephOpenDirectory(
     }
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephCloseFile(
     LPCWSTR                    FileName,
     PDOKAN_FILE_INFO        DokanFileInfo)
@@ -748,7 +748,7 @@ WinCephCloseFile(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephCleanup(
     LPCWSTR                    FileName,
     PDOKAN_FILE_INFO        DokanFileInfo)
@@ -810,7 +810,7 @@ WinCephCleanup(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephReadFile(
     LPCWSTR              FileName,
     LPVOID               Buffer,
@@ -869,7 +869,7 @@ WinCephReadFile(
         int ret = ceph_read(cmount, fd_new, Buffer, BufferLength, Offset);
         if(ret<0)
         {
-            fwprintf(stderr, L"ceph_read IO error [Offset=%ld][ret=%d]\n", Offset, ret);
+            fwprintf(stderr, L"ceph_read IO error [fn:%s][Offset=%ld][ret=%d]\n", FileName, Offset, ret);
             ceph_close(cmount, fd_new);
             return ret;
         }
@@ -881,7 +881,7 @@ WinCephReadFile(
         int ret = ceph_read(cmount, fdc.fd, Buffer, BufferLength, Offset);
         if(ret<0)
         {
-            fwprintf(stderr, L"ceph_read IO error [Offset=%ld][ret=%d]\n", Offset, ret);
+            fwprintf(stderr, L"ceph_read IO error [fn:%s][Offset=%ld][ret=%d]\n", FileName, Offset, ret);
             return ret;
         }
         *ReadLength = ret;
@@ -891,7 +891,7 @@ WinCephReadFile(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephWriteFile(
     LPCWSTR        FileName,
     LPCVOID        Buffer,
@@ -967,7 +967,7 @@ WinCephWriteFile(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephFlushFileBuffers(
     LPCWSTR        FileName,
     PDOKAN_FILE_INFO    DokanFileInfo)
@@ -1001,7 +1001,7 @@ WinCephFlushFileBuffers(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephGetFileInformation(
     LPCWSTR                            FileName,
     LPBY_HANDLE_FILE_INFORMATION    HandleFileInformation,
@@ -1073,7 +1073,7 @@ WinCephGetFileInformation(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephFindFiles(
     LPCWSTR                FileName,
     PFillFindData        FillFindData, // function pointer
@@ -1172,7 +1172,7 @@ WinCephFindFiles(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephDeleteFile(
     LPCWSTR                FileName,
     PDOKAN_FILE_INFO    DokanFileInfo)
@@ -1194,7 +1194,7 @@ WinCephDeleteFile(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephDeleteDirectory(
     LPCWSTR                FileName,
     PDOKAN_FILE_INFO    DokanFileInfo)
@@ -1248,7 +1248,7 @@ WinCephDeleteDirectory(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephMoveFile(
     LPCWSTR                FileName, // existing file name
     LPCWSTR                NewFileName,
@@ -1285,7 +1285,7 @@ WinCephMoveFile(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephLockFile(
     LPCWSTR                FileName,
     LONGLONG            ByteOffset,
@@ -1306,7 +1306,7 @@ WinCephLockFile(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephSetEndOfFile(
     LPCWSTR                FileName,
     LONGLONG            ByteOffset,
@@ -1345,7 +1345,7 @@ WinCephSetEndOfFile(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephSetAllocationSize(
     LPCWSTR                FileName,
     LONGLONG            AllocSize,
@@ -1399,7 +1399,7 @@ WinCephSetAllocationSize(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephSetFileAttributes(
     LPCWSTR             FileName,
     DWORD               FileAttributes,
@@ -1424,7 +1424,7 @@ WinCephSetFileAttributes(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephSetFileTime(
     LPCWSTR                FileName,
     CONST FILETIME*        CreationTime,
@@ -1480,7 +1480,7 @@ WinCephSetFileTime(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephUnlockFile(
     LPCWSTR                FileName,
     LONGLONG            ByteOffset,
@@ -1499,7 +1499,7 @@ WinCephUnlockFile(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephGetFakeFileSecurity(
     LPCWSTR                    FileName,
     PSECURITY_INFORMATION    SecurityInformation,
@@ -1587,7 +1587,7 @@ WinCephGetFakeFileSecurity(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephGetFileSecurity(
     LPCWSTR                    FileName,
     PSECURITY_INFORMATION    SecurityInformation,
@@ -1606,7 +1606,7 @@ WinCephGetFileSecurity(
     //         SecurityDescriptor, BufferLength, LengthNeeded, DokanFileInfo);
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephSetFileSecurity(
     LPCWSTR                    FileName,
     PSECURITY_INFORMATION    SecurityInformation,
@@ -1622,7 +1622,7 @@ WinCephSetFileSecurity(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephGetVolumeInformation(
     LPWSTR        VolumeNameBuffer,
     DWORD        VolumeNameSize,
@@ -1647,7 +1647,7 @@ WinCephGetVolumeInformation(
     return 0;
 }
 
-static int
+static int DOKAN_CALLBACK
 WinCephGetDiskFreeSpace(
     PULONGLONG FreeBytesAvailable, 
     PULONGLONG TotalNumberOfBytes,
@@ -1669,7 +1669,7 @@ WinCephGetDiskFreeSpace(
 }
 
 
-static int
+static int DOKAN_CALLBACK
 WinCephUnmount(
     PDOKAN_FILE_INFO    DokanFileInfo)
 {
@@ -1686,7 +1686,6 @@ BOOL WINAPI ConsoleHandler(DWORD dwType)
     case CTRL_C_EVENT:
         printf("ctrl-c\n");
         WinCephUnmount(NULL);
-        Sleep(10000);
         exit(0);
     case CTRL_BREAK_EVENT:
         printf("break\n");
